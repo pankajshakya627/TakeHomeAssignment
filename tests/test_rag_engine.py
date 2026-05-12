@@ -1,8 +1,14 @@
 import json
+import sys
+import types
 
+import numpy as np
+
+from rag_assessment.benchmark import build_parser
 from rag_assessment.engine import ContextAwareRetrievalEngine
 from rag_assessment.mock_vertex import MockGenerativeModel, MockTextEmbeddingModel
 from rag_assessment.sample_data import TECHNICAL_PARAGRAPHS
+from rag_assessment.vector_store import FaissVectorStore
 
 
 def build_engine() -> ContextAwareRetrievalEngine:
@@ -33,10 +39,43 @@ def test_mock_text_embedding_model_exposes_vertex_like_get_embeddings() -> None:
 def test_mock_generative_model_expands_query_with_retrieval_terms() -> None:
     model = MockGenerativeModel()
 
-    expanded_query = model.generate_content("How does the system handle peak load?")
+    response = model.generate_content("How does the system handle peak load?")
+    expanded_query = response.text
 
     assert "horizontal autoscaling" in expanded_query
     assert "backpressure" in expanded_query
+
+
+def test_faiss_vector_store_replaces_index_on_second_add(monkeypatch) -> None:
+    class FakeIndexFlatIP:
+        def __init__(self, dimensions: int) -> None:
+            self.dimensions = dimensions
+            self.vectors = np.empty((0, dimensions), dtype="float32")
+
+        def add(self, vectors: np.ndarray) -> None:
+            self.vectors = np.vstack([self.vectors, vectors])
+
+        def search(self, query: np.ndarray, top_k: int) -> tuple[np.ndarray, np.ndarray]:
+            scores = self.vectors @ query[0]
+            ranked = np.argsort(scores)[::-1][:top_k]
+            return scores[ranked].reshape(1, -1), ranked.reshape(1, -1)
+
+    fake_faiss = types.SimpleNamespace(IndexFlatIP=FakeIndexFlatIP)
+    monkeypatch.setitem(sys.modules, "faiss", fake_faiss)
+
+    store = FaissVectorStore(dimensions=2)
+    store.add(np.array([[1.0, 0.0], [0.0, 1.0]], dtype="float32"))
+    store.add(np.array([[1.0, 0.0]], dtype="float32"))
+
+    matches = store.search(np.array([0.0, 1.0], dtype="float32"), top_k=3)
+
+    assert matches == [(0, 0.0)]
+
+
+def test_benchmark_defaults_to_sentence_transformers_backend() -> None:
+    args = build_parser().parse_args([])
+
+    assert args.embedding_backend == "sentence-transformers"
 
 
 def test_raw_search_returns_ranked_chunks() -> None:

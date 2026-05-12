@@ -16,6 +16,11 @@ class MockEmbedding:
     values: list[float]
 
 
+@dataclass(frozen=True)
+class MockGenerationResponse:
+    text: str
+
+
 class MockTextEmbeddingModel:
     """Offline stand-in for vertexai.language_models.TextEmbeddingModel.
 
@@ -76,12 +81,14 @@ class MockGenerativeModel:
         ),
     )
 
-    def generate_content(self, prompt: str) -> str:
+    def generate_content(self, prompt: str) -> MockGenerationResponse:
         source_query = prompt.lower()
         for keywords, expansion in self._expansions:
             if any(keyword in source_query for keyword in keywords):
-                return f"{prompt.strip()} {expansion}"
-        return f"{prompt.strip()} relevant architecture reliability security operations implementation details"
+                return MockGenerationResponse(f"{prompt.strip()} {expansion}")
+        return MockGenerationResponse(
+            f"{prompt.strip()} relevant architecture reliability security operations implementation details"
+        )
 
     def expand_query(self, query: str) -> str:
-        return self.generate_content(query)
+        return self.generate_content(query).text

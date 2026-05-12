@@ -22,7 +22,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--embedding-backend",
         choices=["mock", "sentence-transformers"],
-        default="mock",
+        default="sentence-transformers",
         help="Use deterministic offline mock embeddings or a local sentence-transformers model.",
     )
     parser.add_argument("--model-name", default="all-MiniLM-L6-v2")

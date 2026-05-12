@@ -10,7 +10,7 @@ Metadata:
 
 ```json
 {
-  "embedding_model": "MockTextEmbeddingModel",
+  "embedding_model": "SentenceTransformerTextEmbeddingModel",
   "query_expander": "MockGenerativeModel",
   "vector_store": "faiss.IndexFlatIP",
   "strategy_a": "Raw Vector Search",
@@ -36,12 +36,14 @@ How does the system handle peak load? horizontal autoscaling queue depth request
 
 | Rank | Strategy A: Raw Vector Search | Score | Strategy B: AI-Enhanced Retrieval | Score |
 |---:|---|---:|---|---:|
-| 1 | `deployment_rollbacks` | 0.1827 | `scaling_peak_load` | 0.4672 |
-| 2 | `rag_indexing` | 0.1767 | `deployment_rollbacks` | 0.1432 |
-| 3 | `scaling_peak_load` | 0.1126 | `rag_indexing` | 0.1370 |
+| 1 | `scaling_peak_load` | 0.3229 | `scaling_peak_load` | 0.7285 |
+| 2 | `cache_rate_limit` | 0.2684 | `data_pipeline` | 0.3669 |
+| 3 | `observability_slo` | 0.2600 | `cache_rate_limit` | 0.3455 |
 
-Observation: the raw query is ambiguous around "handle" and "system", while
-query expansion adds operational terms that move the scalability chunk to rank 1.
+Observation: both strategies identify the scalability chunk, but query expansion
+more than doubles its similarity score and changes the rest of the top-3 set by
+adding operational terms such as autoscaling, queue depth, backpressure, Kafka,
+latency, and throughput.
 
 ## Query 2
 
@@ -59,13 +61,13 @@ What protects customer data if credentials leak? envelope encryption key rotatio
 
 | Rank | Strategy A: Raw Vector Search | Score | Strategy B: AI-Enhanced Retrieval | Score |
 |---:|---|---:|---|---:|
-| 1 | `security_credentials` | 0.1998 | `security_credentials` | 0.5758 |
-| 2 | `cache_rate_limit` | 0.0648 | `cache_rate_limit` | 0.1039 |
-| 3 | `scaling_peak_load` | 0.0000 | `rag_indexing` | 0.1014 |
+| 1 | `security_credentials` | 0.7531 | `security_credentials` | 0.8604 |
+| 2 | `cache_rate_limit` | 0.2101 | `observability_slo` | 0.2623 |
+| 3 | `model_guardrails` | 0.1911 | `cache_rate_limit` | 0.2431 |
 
-Observation: both strategies retrieve the correct security chunk first, but the
-expanded query creates a much stronger similarity score by adding specific
-security controls.
+Observation: both strategies retrieve the security chunk first, while the
+expanded query produces a stronger top score by adding explicit controls such as
+envelope encryption, key rotation, scoped IAM, revocation, and audit logging.
 
 ## Query 3
 
@@ -83,10 +85,10 @@ How are bad model outputs detected before users see them? model guardrails groun
 
 | Rank | Strategy A: Raw Vector Search | Score | Strategy B: AI-Enhanced Retrieval | Score |
 |---:|---|---:|---|---:|
-| 1 | `model_guardrails` | 0.1311 | `model_guardrails` | 0.5557 |
-| 2 | `security_credentials` | 0.0645 | `data_pipeline` | 0.1045 |
-| 3 | `cache_rate_limit` | 0.0598 | `observability_slo` | 0.0784 |
+| 1 | `model_guardrails` | 0.4094 | `model_guardrails` | 0.7019 |
+| 2 | `observability_slo` | 0.3695 | `observability_slo` | 0.3794 |
+| 3 | `deployment_rollbacks` | 0.2876 | `deployment_rollbacks` | 0.3364 |
 
-Observation: the expanded query strengthens the intended AI quality match by
-adding terms for guardrails, citations, policy checks, hallucinations, and safe
-fallbacks.
+Observation: both strategies retrieve the AI quality chunk first. The expanded
+query strengthens the intended match by adding guardrail, citation, toxicity,
+policy, hallucination, confidence, fallback, and safe-response terms.

@@ -24,6 +24,7 @@ class FaissVectorStore:
         normalized = self._normalize(vectors.astype("float32"))
         self._vectors = normalized
         if self._index is not None:
+            self._index = self._faiss.IndexFlatIP(self.dimensions)
             self._index.add(normalized)
 
     def search(self, query_vector: np.ndarray, top_k: int) -> list[tuple[int, float]]:

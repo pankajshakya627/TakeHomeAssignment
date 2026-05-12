@@ -33,6 +33,8 @@ Expanded: How does the system handle peak load? horizontal autoscaling queue dep
 ## Project Layout
 
 ```text
+.circleci/
+  config.yml                           CI workflow for pytest
 rag_assessment/
   benchmark.py                         CLI benchmark runner
   engine.py                            RAG orchestration class
@@ -122,12 +124,11 @@ or:
 
 ## Embedding Backends
 
-The default backend is `MockTextEmbeddingModel`, a deterministic local embedding
-mock that behaves like `vertexai.language_models.TextEmbeddingModel` without
-cloud credentials or network calls. This keeps tests and benchmark output stable.
+The default benchmark backend is `SentenceTransformerTextEmbeddingModel`, which
+uses the local `sentence-transformers` library to simulate Vertex AI
+`textembedding-gecko` style semantic embeddings.
 
-An optional sentence-transformers backend is included to simulate a real local
-embedding model:
+The default model is `all-MiniLM-L6-v2`:
 
 ```bash
 python3 -m rag_assessment.benchmark \
@@ -138,6 +139,17 @@ python3 -m rag_assessment.benchmark \
 The sentence-transformers path may download model weights on first use unless
 the model is already cached locally.
 
+For deterministic offline tests or demos, use the mocked embedding backend:
+
+```bash
+python3 -m rag_assessment.benchmark --embedding-backend mock
+```
+
+`MockTextEmbeddingModel` behaves like
+`vertexai.language_models.TextEmbeddingModel` without cloud credentials or
+network calls. `MockGenerativeModel` behaves like a Vertex generative model and
+returns a response object with a `.text` field.
+
 ## Run Tests
 
 ```bash
@@ -147,7 +159,7 @@ python3 -m pytest
 Expected result:
 
 ```text
-6 passed
+8 passed
 ```
 
 ## Expected Benchmark Behavior
@@ -164,8 +176,8 @@ The expanded query adds terms like `autoscaling`, `queue depth`, and
 
 ## Assessment Requirement Mapping
 
-- Embedding model: `MockTextEmbeddingModel` by default, optional
-  `SentenceTransformerTextEmbeddingModel`.
+- Embedding model: `SentenceTransformerTextEmbeddingModel` by default, with
+  `MockTextEmbeddingModel` available for deterministic offline tests.
 - Vector database: `FaissVectorStore` using FAISS when installed.
 - Mocking: `MockTextEmbeddingModel` and `MockGenerativeModel` mirror the Vertex
   AI model interfaces used in the assessment.
@@ -174,7 +186,7 @@ The expanded query adds terms like `autoscaling`, `queue depth`, and
 - Benchmarking: `run_benchmark.py` and `rag_assessment.benchmark` output
   structured comparisons for three queries.
 - Dev evidence: `retrieval_benchmark.md` contains captured Strategy A vs
-  Strategy B output.
+  Strategy B output using `sentence-transformers` and FAISS.
 
 ## Production Migration To Vertex AI Vector Search
 
